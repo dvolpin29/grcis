@@ -1,15 +1,27 @@
-﻿using System;
+﻿// Daniel Volpin
+
+using System;
 using System.Drawing;
 using MathSupport;
 using CircleCanvas;
 using System.Globalization;
 using System.Collections.Generic;
 using Utilities;
+using OpenTK.Audio.OpenAL;
+using System.Linq;
+using System.Runtime.Remoting;
+using OpenTK.Graphics.ES11;
 
 namespace _083animation
 {
+
   public class Animation
   {
+    static int MAX_DEPTH;
+    static int TOTAL_FRAMES;
+
+    static IDictionary<double, List<(Color, float, float, float)>> depthColorDict;
+
     /// <summary>
     /// Form data initialization.
     /// </summary>
@@ -23,10 +35,8 @@ namespace _083animation
     /// <param name="tooltip">Optional tooltip = param help.</param>
     public static void InitParams (out string name, out int wid, out int hei, out double from, out double to, out double fps, out string param, out string tooltip)
     {
-      // {{
-
       // Put your name here.
-      name = "Josef Pelikán";
+      name = "Daniel Volpin";
 
       // Frame size in pixels.
       wid = 640;
@@ -34,14 +44,12 @@ namespace _083animation
 
       // Animation.
       from =  0.0;
-      to   = 10.0;
-      fps  = 25.0;
+      to   =  10.0;
+      fps  = 24;
 
       // Form params.
       param = "objects=1200,seed=12,speed=1.0";
       tooltip = "objects=<int>, seed=<long>, speed=<double>";
-
-      // }}
     }
 
     /// <summary>
@@ -56,9 +64,18 @@ namespace _083animation
     /// <param name="param">Text parameter field from the form.</param>
     public static void InitAnimation (int width, int height, double start, double end, double fps, string param)
     {
-      // {{ TODO: put your init code here
+      TOTAL_FRAMES = (int)(end * fps);
 
-      // }}
+      MAX_DEPTH = DISC_DATA.Length / 3;
+
+      depthColorDict = new Dictionary<double, List<(Color, float, float, float)>>();
+
+      for (int i = 0; i < MAX_DEPTH; i++)
+      {
+        depthColorDict.Add(i, new List<(Color, float, float, float)>());
+      }
+
+      MakeCircles();
     }
 
     /// <summary>
@@ -71,9 +88,13 @@ namespace _083animation
     /// <param name="param">Optional string parameter from the form.</param>
     public static void DrawFrame (Canvas c, double time, double start, double end, string param)
     {
-      // {{ TODO: put your drawing code here
 
-      int objects = 1200;
+      double t = TOTAL_FRAMES * ((time - start) / (end - start));
+      int currDepth = (int)Math.Ceiling(t * (double)MAX_DEPTH / (double)TOTAL_FRAMES);
+
+      for (int i = 1; i <= currDepth; i++)
+        DrawCircleToCanvas(c, i);
+
       long seed = 144;
       double speed = 1.0;
 
@@ -81,13 +102,6 @@ namespace _083animation
       Dictionary<string, string> p = Util.ParseKeyValueList(param);
       if (p.Count > 0)
       {
-        // objects=<int>
-        if (Util.TryParse(p, "objects", ref objects))
-        {
-          if (objects < 10)
-            objects = 10;
-        }
-
         // seed=<long>
         Util.TryParse(p, "seed", ref seed);
 
@@ -95,98 +109,54 @@ namespace _083animation
         Util.TryParse(p, "speed", ref speed);
       }
 
-      int wq = c.Width / 4;
-      int hq = c.Height / 4;
-      int minq = Math.Min(wq, hq);
-      double t;
-      int i, j;
-      double x, y, r;
+    }
 
-      c.Clear(Color.Black);
-      c.SetAntiAlias(true);
+    public static void MakeCircle (Random rnd)
+    {
 
-      // 1st quadrant - anti-aliased disks in a spiral.
-      const int MAX_DISK = 30;
-      for (i = 0, t = 0.0; i < MAX_DISK; i++, t += 0.65)
+      for (int i = 0; i < MAX_DEPTH; i++)
       {
-        r = 5.0 + i * (minq * 0.7 - 5.0) / MAX_DISK;
-        c.SetColor(Color.FromArgb((i * 255) / MAX_DISK, 255, 255 - (i * 255) / MAX_DISK));
-        c.FillDisc((float)(wq + r * Math.Sin(t)), (float)(hq + r * Math.Cos(t)), (float)(r * 0.3));
+        int r = rnd.Next(-2, 2);
+
+        float cx = (float)DISC_DATA[i, 0];
+        float cy = (float)DISC_DATA[i, 1];
+        float cr = (float)DISC_DATA[i, 2];
+
+        if (r == 0)
+          depthColorDict[i].Add((COLORS[0], cx, cy, cr));
+        else
+          depthColorDict[i].Add((COLORS[1], cx, cy, cr));
       }
 
-      // 2nd quadrant - anti-aliased random dots in a heart shape..
-      RandomJames rnd = new RandomJames(seed + (long)((time - start) * 5));
-      double xx, yy, tmp;
 
-      for (i = 0; i < objects; i++)
-      {
-        // This is called "Rejection Sampling"
-        do
-        {
-          x = rnd.RandomDouble(-1.5, 1.5);
-          y = rnd.RandomDouble(-1.0, 1.5);
-          xx = x * x;
-          yy = y * y;
-          tmp = xx + yy - 1.0;
-        } while (tmp * tmp * tmp - xx * yy * y > 0.0);
+    }
 
-        c.SetColor(Color.FromArgb(rnd.RandomInteger(200, 255),
-                                  rnd.RandomInteger(120, 220),
-                                  rnd.RandomInteger(120, 220)));
-        c.FillDisc(3.1f * wq + 0.8f * minq * (float)x,
-                   1.2f * hq - 0.8f * minq * (float)y,
-                   rnd.RandomFloat(1.0f, minq * 0.03f));
-      }
+    private static void MakeCircles()
+    {
+      Random rnd = new Random();
+      MakeCircle(rnd);
+    }
 
-      // 4th quadrant - CGG logo.
-      c.SetColor(COLORS[0]);
-      for (i = 0; i < DISC_DATA.Length / 3; i++)
-      {
-        x = DISC_DATA[i, 0] - 65.0;
-        y = DISC_DATA[i, 1] - 65.0;
-        r = DISC_DATA[i, 2];
-        if (i == FIRST_COLOR)
-          c.SetColor(COLORS[1]);
+    public static void DrawCircleToCanvas(Canvas c, int index)
+    {
+      var circleList = depthColorDict.ElementAt(index - 1).Value;
 
-        t = 4.0 * speed * Math.PI * (time - start) / (end - start);
-        double sina = Math.Sin(t);
-        double cosa = Math.Cos(t);
-        double nx =  cosa * x + sina * y;
-        double ny = -sina * x + cosa * y;
-
-        c.FillDisc(3.0f * wq + (float)((nx - 20.0) * 0.018 * minq),
-                   3.0f * hq + (float)(ny * 0.018 * minq),
-                   (float)(r * 0.018 * minq));
-      }
-
-      // 3rd quadrant - jaggy disks.
-      const int DISKS = 12;
-      for (j = 0; j < DISKS; j++)
-        for (i = 0; i < DISKS; i++)
-        {
-          c.SetColor(((i ^ j) & 1) == 0 ? Color.White : Color.Blue);
-          c.FillDisc(wq + (i - DISKS / 2) * (wq * 1.8f / DISKS),
-                     3 * hq + (j - DISKS / 2) * (hq * 1.7f / DISKS),
-                     (((i ^ j) & 15) + 1.0f) / DISKS * minq * 0.08f);
-        }
-
-      // }}
+      c.SetColor(circleList[0].Item1);
+      c.FillDisc(circleList[0].Item2, circleList[0].Item3, circleList[0].Item4);
+      
     }
 
     /// <summary>
     /// CGG logo colors.
     /// </summary>
-    protected static Color[] COLORS =
-    {
+    protected static Color[] COLORS = {
       Color.FromArgb(0x71, 0x21, 0x6d),
-      Color.FromArgb(0xe8, 0x75, 0x05)
-    };
+      Color.FromArgb(0xe8, 0x75, 0x05) };
 
     /// <summary>
     /// CGG logo geometry { cx, cy, radius }.
     /// </summary>
-    protected static double[,] DISC_DATA = new double[,]
-    {
+    protected static double[,] DISC_DATA = new double[,] {
       {  59.2317,  77.2244, 2.1480 },
       {  29.5167,  69.7424, 4.1070 },
       {  50.0857,  90.1954, 4.4050 },
@@ -350,5 +320,6 @@ namespace _083animation
     /// Number of disc having the 1st color.
     /// </summary>
     protected const int FIRST_COLOR = 54;
+
   }
 }

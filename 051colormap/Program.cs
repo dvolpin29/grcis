@@ -22,12 +22,16 @@ namespace _051colormap
       int columnWidth = width / stripes;
       int y = 0;
 
+      Console.Write(stripes);
+
       // 1. create color brushes:
       Brush[] brushes = new Brush[stripes];
       for (int i = 0; i < stripes; i++)
         brushes[i] = new SolidBrush(Form1.colors[i]);
       Brush brBlack = new SolidBrush(Color.Black);
       Brush brWhite = new SolidBrush(Color.White);
+
+      Console.Write(brushes);
 
       // 2. draw color stripes:
       Font myFont = new System.Drawing.Font("Helvetica", 10, FontStyle.Regular);

@@ -134,6 +134,7 @@ namespace CircleCanvas
       currBrush.Color = col;
     }
 
+#if CIRCLES
     /// <summary>
     /// Sets current pen width.
     /// </summary>
@@ -145,6 +146,7 @@ namespace CircleCanvas
 
       currPen.Width = currPenWidth = width;
     }
+#endif
 
     /// <summary>
     /// Fills the given disc with the current color.

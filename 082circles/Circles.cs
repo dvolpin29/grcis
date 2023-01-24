@@ -1,6 +1,4 @@
-﻿// Daniel Volpin
-
-using System;
+﻿using System;
 using System.Drawing;
 using System.Globalization;
 using CircleCanvas;
@@ -21,7 +19,7 @@ namespace _082circles
     public static void InitParams (out string name, out int wid, out int hei, out string param, out string tooltip)
     {
       // {{
-      name    = "Daniel Volpin";
+      name    = "Josef Pelikán";
       wid     = 800;
       hei     = 520;
       param   = "12";
@@ -38,8 +36,14 @@ namespace _082circles
     {
       // {{ TODO: put your drawing code here
 
-
+      int wq = c.Width  / 4;
+      int hq = c.Height / 4;
+      int minq = Math.Min(wq, hq);
+      double t;
+      int i, j;
+      double x, y, r;
       RandomJames rnd = new RandomJames();
+
       c.Clear(Color.Black);
 
       // Example of even simpler passing of a numeric value through string param.
@@ -47,43 +51,67 @@ namespace _082circles
       if (long.TryParse(param, NumberStyles.Number, CultureInfo.InvariantCulture, out seed))
         rnd.Reset(seed);
 
-      Color[] rainbow = new Color[]{
-        Color.FromArgb(255, 0, 255),
-        Color.FromArgb(255, 0, 125),
-        Color.FromArgb(255, 0, 0),
-        Color.FromArgb(255, 125, 0),
-        Color.FromArgb(255, 255, 0),
-        Color.FromArgb(125, 255, 0),
-        Color.FromArgb(0, 255, 0),
-        Color.FromArgb(0, 255, 125),
-        Color.FromArgb(0, 255, 255),
-        Color.FromArgb(0, 125, 255),
-        Color.FromArgb(0, 0, 255),
-        Color.FromArgb(125, 0, 255),
-       };
-
-      int i = 0;
-      int x = c.Width  / 2;
-      int y = c.Height / 2;
-      int r = Math.Min(x, y);
-      
-      drawCircle(rainbow, x, y, r, ref c, ref i);
-    }
-
-    public static void drawCircle(Color[] rainbow, double x, double y, double d, ref Canvas c, ref int i)
-    {
-      c.SetColor(rainbow[i % 12]);
-      c.FillDisc((int)x, (int)y, (int)d);
-      c.SetColor(Color.Black);
-      c.FillDisc((int)x, (int)y, (int)d - 1);
-
-      if (d > 2)
+      // 1st quadrant - anti-aliased disks in a spiral.
+      c.SetAntiAlias(true);
+      const int MAX_DISK = 30;
+      for (i = 0, t = 0.0; i < MAX_DISK; i++, t += 0.65)
       {
-        i++;
-        drawCircle(rainbow, x + d * 0.5, y, d * 0.5, ref c, ref i);
-        drawCircle(rainbow, x - d * 0.5, y, d * 0.5, ref c, ref i);
-        drawCircle(rainbow, x, y + d * 0.5, d * 0.5, ref c, ref i);
+        r = 5.0 + i * (minq * 0.7 - 5.0) / MAX_DISK;
+        c.SetColor(Color.FromArgb(i * 255 / MAX_DISK, 255, 255 - i * 255 / MAX_DISK));
+        c.FillDisc((float)(wq + r * Math.Sin(t)), (float)(hq + r * Math.Cos(t)), (float)(r * 0.3));
       }
+
+      // 2nd quadrant - anti-aliased random dots in a heart shape..
+      const int MAX_RND_DOTS = 1000;
+      double xx, yy, tmp;
+
+      for (i = 0; i < MAX_RND_DOTS; i++)
+      {
+        // This is called "Rejection Sampling"
+        do
+        {
+          x = rnd.RandomDouble(-1.5, 1.5);
+          y = rnd.RandomDouble(-1.0, 1.5);
+          xx = x * x;
+          yy = y * y;
+          tmp = xx + yy - 1.0;
+        } while (tmp * tmp * tmp - xx * yy * y > 0.0);
+
+        c.SetColor(Color.FromArgb(rnd.RandomInteger(200, 255),
+                                  rnd.RandomInteger(120, 220),
+                                  rnd.RandomInteger(120, 220)));
+        c.FillDisc(3.1f * wq + 0.8f * minq * (float)x,
+                   1.2f * hq - 0.8f * minq * (float)y,
+                   rnd.RandomFloat(1.0f, minq * 0.03f));
+      }
+
+      // 4th quadrant - CGG logo.
+      c.SetColor(COLORS[0]);
+      for (i = 0; i < DISC_DATA.Length / 3; i++)
+      {
+        x = DISC_DATA[i, 0];
+        y = DISC_DATA[i, 1];
+        r = DISC_DATA[i, 2];
+        if (i == FIRST_COLOR)
+          c.SetColor(COLORS[1]);
+
+        c.FillDisc(3.0f * wq + (float)((x - 85.0) * 0.018 * minq),
+                   3.0f * hq + (float)((y - 65.0) * 0.018 * minq),
+                   (float)(r * 0.018 * minq));
+      }
+
+      // 3rd quadrant - disk grid.
+      const int DISKS = 12;
+      for (j = 0; j < DISKS; j++)
+        for (i = 0; i < DISKS; i++)
+        {
+          c.SetColor(((i ^ j) & 1) == 0 ? Color.White : Color.Blue);
+          c.FillDisc(wq + (i - DISKS / 2) * (wq * 1.8f / DISKS),
+                     3 * hq + (j - DISKS / 2) * (hq * 1.7f / DISKS),
+                     (((i ^ j) & 15) + 1.0f) / DISKS * minq * 0.08f);
+        }
+
+      // }}
     }
 
     /// <summary>
@@ -260,6 +288,5 @@ namespace _082circles
     /// Number of disc having the 1st color.
     /// </summary>
     protected const int FIRST_COLOR = 54;
-
   }
 }
